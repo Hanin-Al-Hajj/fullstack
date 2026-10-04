@@ -10,7 +10,10 @@ class AttributeValue extends Model
 
     protected function casts(): array
     {
-        return ['meta' => 'array'];
+        return [
+            'value' => 'array',
+            'meta' => 'array',
+        ];
     }
 
     public function attribute()

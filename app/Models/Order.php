@@ -10,8 +10,8 @@ class Order extends Model
         'order_number', 'user_id', 'guest_email', 'guest_phone', 'status',
         'payment_status', 'payment_method', 'currency', 'exchange_rate',
         'subtotal_minor', 'shipping_minor', 'discount_minor', 'tax_minor',
-        'total_minor', 'coupon_id', 'shipping_address', 'billing_address',
-        'notes', 'placed_at',
+        'total_minor', 'coupon_id', 'shipping_rate_id', 'shipping_method_label',
+        'shipping_address', 'billing_address', 'notes', 'placed_at',
     ];
 
     protected function casts(): array
@@ -46,6 +46,11 @@ class Order extends Model
     public function coupon()
     {
         return $this->belongsTo(Coupon::class);
+    }
+
+    public function shippingRate()
+    {
+        return $this->belongsTo(ShippingRate::class);
     }
 
     public function isGuestOrder(): bool

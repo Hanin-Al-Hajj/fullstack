@@ -9,7 +9,10 @@ class User extends Authenticatable
 {
     use Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'phone', 'locale'];
+    protected $fillable = [
+        'name', 'email', 'password', 'phone', 'locale',
+        'provider', 'provider_id', 'avatar',
+    ];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -61,5 +64,10 @@ class User extends Authenticatable
     public function notes()
     {
         return $this->hasMany(CustomerNote::class);
+    }
+
+    public function isSocialLogin(): bool
+    {
+        return ! is_null($this->provider);
     }
 }

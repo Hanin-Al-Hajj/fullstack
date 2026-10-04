@@ -8,8 +8,8 @@ class ProductVariant extends Model
 {
     protected $fillable = [
         'product_id', 'sku', 'price_minor', 'compare_at_price_minor',
-        'currency', 'stock_qty', 'backorder_allowed', 'weight_grams',
-        'is_default', 'is_active',
+        'currency', 'stock_qty', 'low_stock_threshold', 'backorder_allowed',
+        'weight_grams', 'is_default', 'is_active',
     ];
 
     protected function casts(): array
@@ -40,5 +40,10 @@ class ProductVariant extends Model
     public function inStock(): bool
     {
         return $this->stock_qty > 0 || $this->backorder_allowed;
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->stock_qty > 0 && $this->stock_qty <= $this->low_stock_threshold;
     }
 }
