@@ -6,6 +6,8 @@ use App\Models\CartItem;
 use App\Models\ProductVariant;
 use App\Services\CartService;
 use Illuminate\Http\Request;
+use App\Support\Seo;
+use Inertia\Inertia;
 
 class CartController extends Controller
 {
@@ -13,10 +15,42 @@ class CartController extends Controller
 
     public function index()
     {
-        $cart = $this->cartService->current()->load('items.variant.product');
+        $cart = $this->cartService->current()->load([
+            'items.variant.attributeValues',
+            'items.variant.product.media',
+        ]);
 
-        return response()->json([
-            'cart' => $cart,
+        $items = $cart->items
+            ->filter(fn (CartItem $i) => $i->variant?->product)
+            ->map(function (CartItem $item) {
+                $v = $item->variant;
+                $max = $v->backorder_allowed ? 99 : $v->stock_qty;
+
+                return [
+                    'id' => $item->id,
+                    'qty' => $item->qty,
+                    'unit_price_minor' => app(\App\Services\PricingService::class)->unitPriceMinor($v),
+                    'currency' => $v->currency,
+                    'max_qty' => $max,
+                    'problem' => ! $v->is_active || $item->qty > $max,
+                    'sku' => $v->sku,
+                    'options' => $v->attributeValues->pluck('value')->values(),
+                    'product' => [
+                        'id' => $v->product->id,
+                        'slug' => $v->product->slug,
+                        'name' => $v->product->name,
+                        'image_url' => $v->product->getFirstMediaUrl('gallery', 'thumb') ?: null,
+                    ],
+                ];
+            })->values();
+
+                    Seo::set([
+            'title' => Seo::tr('Cart', 'السلة'),
+            'noindex' => true,
+        ]);
+        
+        return Inertia::render('Cart', [
+            'items' => $items,
             'subtotal_minor' => $this->cartService->subtotalMinor(),
         ]);
     }
@@ -31,7 +65,7 @@ class CartController extends Controller
         $variant = ProductVariant::findOrFail($data['product_variant_id']);
 
         if (! $variant->is_active || ! $variant->inStock()) {
-            return response()->json(['message' => 'This item is currently unavailable.'], 422);
+            return response()->json(['message' => __('store.item_unavailable')], 422);
         }
 
         $item = $this->cartService->addItem($variant, $data['qty']);
@@ -77,7 +111,7 @@ class CartController extends Controller
         abort_unless(
             $cartItem->cart_id === $this->cartService->current()->id,
             403,
-            'This cart item does not belong to your cart.'
+            __('store.cart_item_not_yours')
         );
     }
 }

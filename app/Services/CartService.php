@@ -96,6 +96,19 @@ class CartService
         session()->forget(self::SESSION_KEY);
     }
 
+    // Like itemCount() but never creates a cart (used for the header badge on every page).
+    public function peekCount(): int
+    {
+        if (auth()->check()) {
+            $cart = Cart::where('user_id', auth()->id())->first();
+        } else {
+            $token = session(self::SESSION_KEY);
+            $cart = $token ? Cart::where('session_token', $token)->first() : null;
+        }
+
+        return $cart ? (int) $cart->items()->sum('qty') : 0;
+    }
+
     public function itemCount(): int
     {
         return $this->current()->items()->sum('qty');
@@ -103,8 +116,10 @@ class CartService
 
     public function subtotalMinor(): int
     {
-        return $this->current()->items->sum(
-            fn (CartItem $item) => $item->unit_price_minor * $item->qty
+        $pricing = app(PricingService::class);
+
+        return $this->current()->items()->with('variant')->get()->sum(
+            fn (CartItem $item) => $pricing->unitPriceMinor($item->variant) * $item->qty
         );
     }
 

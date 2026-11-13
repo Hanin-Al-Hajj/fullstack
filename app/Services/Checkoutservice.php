@@ -27,7 +27,7 @@ class CheckoutService
         $coupon = Coupon::where('code', $code)->first();
 
         if (! $coupon || ! $coupon->isValidFor($subtotalMinor)) {
-            throw new CheckoutException('This coupon code is invalid, expired, or does not apply to this order.');
+            throw new CheckoutException(__('store.coupon_invalid'));
         }
 
         return $coupon;
@@ -55,15 +55,16 @@ class CheckoutService
         $cart->load('items.variant.product');
 
         if ($cart->items->isEmpty()) {
-            throw new CheckoutException('Your cart is empty.');
+            throw new CheckoutException(__('store.cart_empty'));
         }
 
         return DB::transaction(function () use ($cart, $data) {
+            $pricing = app(PricingService::class);
             $lockedVariants = $this->lockAndValidateStock($cart);
 
             $subtotalMinor = 0;
             foreach ($cart->items as $item) {
-                $subtotalMinor += $lockedVariants[$item->id]->price_minor * $item->qty;
+                $subtotalMinor += $pricing->unitPriceMinor($lockedVariants[$item->id]) * $item->qty;
             }
 
             [$shippingRate, $shippingMinor] = $this->resolveShipping($data, $subtotalMinor);
@@ -120,6 +121,37 @@ class CheckoutService
         });
     }
 
+    /**
+     * Totals preview for the checkout page. Writes nothing.
+     */
+    public function quote(Cart $cart, ?int $shippingRateId, ?string $couponCode): array
+    {
+        $cart->load('items.variant');
+        $pricing = app(PricingService::class);
+
+        $subtotal = $cart->items->sum(fn ($i) => $pricing->unitPriceMinor($i->variant) * $i->qty);
+
+        $shipping = 0;
+        if ($shippingRateId) {
+            [, $shipping] = $this->resolveShipping(['shipping_rate_id' => $shippingRateId], $subtotal);
+        }
+
+        $discount = 0;
+        if ($couponCode) {
+            $coupon = $this->validateCoupon($couponCode, $subtotal);
+            $discount = $coupon->type === 'percentage'
+                ? (int) round($subtotal * $coupon->value / 100)
+                : min($coupon->value, $subtotal);
+        }
+
+        return [
+            'subtotal_minor' => $subtotal,
+            'shipping_minor' => $shipping,
+            'discount_minor' => $discount,
+            'total_minor' => $subtotal - $discount + $shipping,
+        ];
+    }
+
     private function lockAndValidateStock(Cart $cart): array
     {
         $locked = [];
@@ -131,12 +163,12 @@ class CheckoutService
             $variant = $item->variant()->lockForUpdate()->first();
 
             if (! $variant) {
-                throw new CheckoutException('An item in your cart is no longer available.');
+                throw new CheckoutException(__('store.item_gone'));
             }
 
             if (! $variant->backorder_allowed && $variant->stock_qty < $item->qty) {
                 throw new CheckoutException(
-                    "'{$variant->sku}' doesn't have enough stock ({$variant->stock_qty} left). Please update your cart."
+                    __('store.not_enough_stock', ['sku' => $variant->sku, 'qty' => $variant->stock_qty])
                 );
             }
 
@@ -151,7 +183,7 @@ class CheckoutService
         $shippingRate = ShippingRate::with('zone')->find($data['shipping_rate_id'] ?? null);
 
         if (! $shippingRate) {
-            throw new CheckoutException('Please choose a valid shipping method.');
+            throw new CheckoutException(__('store.choose_shipping'));
         }
 
         $shippingMinor = $shippingRate->rate_minor;
@@ -167,6 +199,7 @@ class CheckoutService
     {
         foreach ($cart->items as $item) {
             $variant = $lockedVariants[$item->id];
+            $unit = app(PricingService::class)->unitPriceMinor($variant);
 
             OrderItem::create([
                 'order_id' => $order->id,
@@ -177,9 +210,9 @@ class CheckoutService
                     ->map(fn ($v) => $v[app()->getLocale()] ?? $v['en'] ?? '')
                     ->implode(' / '),
                 'sku' => $variant->sku,
-                'unit_price_minor' => $variant->price_minor,
+                'unit_price_minor' => $unit,
                 'qty' => $item->qty,
-                'line_total_minor' => $variant->price_minor * $item->qty,
+                'line_total_minor' => $unit * $item->qty,
             ]);
 
             if (! $variant->backorder_allowed) {

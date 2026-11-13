@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#625AFA">
+    <title>Offline</title>
+    <style>
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+               background: #f4f4fa; font-family: system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif; color: #020310; text-align: center; }
+        .box { max-width: 360px; padding: 24px; }
+        img { height: 64px; margin-bottom: 16px; }
+        h1 { font-size: 20px; margin: 0 0 8px; }
+        p { margin: 0 0 8px; color: #6b6f80; }
+        button { margin-top: 16px; background: #625AFA; color: #fff; border: 0; border-radius: 8px; padding: 12px 28px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <img src="/template/logo1.png" alt="">
+        <h1>You are offline</h1>
+        <p>Check your internet connection and try again.</p>
+        <h1 dir="rtl" style="margin-top:20px">لا يوجد اتصال بالإنترنت</h1>
+        <p dir="rtl">تحقق من اتصالك بالإنترنت وحاول مرة أخرى.</p>
+        <button onclick="location.reload()">Try again / حاول مجدداً</button>
+    </div>
+</body>
+</html>

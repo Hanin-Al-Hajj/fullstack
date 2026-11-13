@@ -16,11 +16,12 @@ class Collection extends Model
         ];
     }
 
+    // No orderBy here, so the admin form's product picker works.
+    // Order by collection_product.sort_order where you list them.
     public function products()
     {
         return $this->belongsToMany(Product::class, 'collection_product')
             ->withPivot('sort_order')
-            ->withTimestamps()
-            ->orderBy('collection_product.sort_order');
+            ->withTimestamps();
     }
 }

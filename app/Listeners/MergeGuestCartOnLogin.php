@@ -11,6 +11,11 @@ class MergeGuestCartOnLogin
 
     public function handle(Login $event): void
     {
+        // Admin logins (Filament) use the 'admin' guard: no cart to merge.
+        if ($event->guard !== 'web') {
+            return;
+        }
+
         $guestToken = $this->cartService->currentSessionToken();
 
         if (! $guestToken) {
